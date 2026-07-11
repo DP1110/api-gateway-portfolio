@@ -1,0 +1,20 @@
+{
+    "routes": [
+        {
+            "prefix": "/users",
+            "strip_prefix": false,
+            "backends": [
+                {"url": "http://localhost:9001", "weight": 1}
+            ],
+            "description": "Users microservice"
+        },
+        {
+            "prefix": "/orders",
+            "strip_prefix": false,
+            "backends": [
+                {"url": "http://localhost:9002", "weight": 1}
+            ],
+            "description": "Orders microservice"
+        }
+    ]
+}

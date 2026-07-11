@@ -1,0 +1,114 @@
+# ===========================================================================
+# docker-compose.yml — API Gateway Portfolio Project
+# ===========================================================================
+# Step 1: Gateway + 2 mock backends (Redis & PostgreSQL present but unused)
+# Later steps will activate Redis and PostgreSQL via env vars.
+#
+# Usage:
+#   docker-compose up --build          # start everything
+#   docker-compose up --build gateway  # restart only the gateway
+# ===========================================================================
+
+version: "3.9"
+
+services:
+
+  # -------------------------------------------------------------------------
+  # API Gateway
+  # -------------------------------------------------------------------------
+  gateway:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Step 1: single hardcoded backend = users-service
+      BACKEND_URL: "http://users-service:9001"
+      LOG_LEVEL: "INFO"
+      # Future steps
+      ROUTES_FILE: "routes.json"
+      REDIS_URL: "redis://redis:6379/0"
+      POSTGRES_DSN: "postgresql://gateway:gateway@postgres:5432/gateway"
+      JWT_SECRET: "super-secret-change-in-prod"
+    depends_on:
+      - users-service
+      - orders-service
+      - redis
+      - postgres
+    networks:
+      - gateway-net
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------------
+  # Mock Backend: Users Service (two instances for Step 5 load balancing)
+  # -------------------------------------------------------------------------
+  users-service:
+    build: .
+    command: ["uvicorn", "mock_backends.users_service:app", "--host", "0.0.0.0", "--port", "9001"]
+    ports:
+      - "9001:9001"
+    environment:
+      PORT: "9001"
+      INSTANCE: "users-1"
+    networks:
+      - gateway-net
+
+  users-service-2:
+    build: .
+    command: ["uvicorn", "mock_backends.users_service:app", "--host", "0.0.0.0", "--port", "9001"]
+    ports:
+      - "9011:9001"
+    environment:
+      PORT: "9001"
+      INSTANCE: "users-2"
+    networks:
+      - gateway-net
+
+  # -------------------------------------------------------------------------
+  # Mock Backend: Orders Service
+  # -------------------------------------------------------------------------
+  orders-service:
+    build: .
+    command: ["uvicorn", "mock_backends.orders_service:app", "--host", "0.0.0.0", "--port", "9002"]
+    ports:
+      - "9002:9002"
+    environment:
+      PORT: "9002"
+      INSTANCE: "orders-1"
+    networks:
+      - gateway-net
+
+  # -------------------------------------------------------------------------
+  # Redis  (rate limiting + caching – Steps 4 & 6)
+  # -------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - gateway-net
+    volumes:
+      - redis-data:/data
+
+  # -------------------------------------------------------------------------
+  # PostgreSQL  (service registry – Step 2+)
+  # -------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: gateway
+      POSTGRES_USER: gateway
+      POSTGRES_PASSWORD: gateway
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - gateway-net
+
+networks:
+  gateway-net:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:

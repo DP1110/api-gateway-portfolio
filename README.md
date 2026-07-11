@@ -1,4 +1,4 @@
-# API Gateway — Project
+# API Gateway 
 
 A production-grade API Gateway built incrementally in **Python 3.11 + FastAPI**, mirroring the architecture of Kong, AWS API Gateway, and Apigee — but written from scratch so every algorithm is visible and documented.
 
